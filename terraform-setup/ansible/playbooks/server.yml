@@ -1,0 +1,146 @@
+---
+- name: Configure Jenkins server
+  hosts: jenkins
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Wait for cloud-init to finish on Jenkins
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+
+    - name: Refresh apt cache on Jenkins
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  tasks:
+    - name: Install Jenkins prerequisites
+      ansible.builtin.apt:
+        name:
+          - curl
+          - fontconfig
+          - gnupg
+          - openjdk-21-jre
+          - wget
+          - python3-apt
+        state: present
+
+    - name: Add Jenkins apt key
+      ansible.builtin.get_url:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+        dest: /etc/apt/keyrings/jenkins-keyring.asc
+        mode: "0644"
+
+    - name: Add Jenkins apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+        filename: jenkins
+        state: present
+
+    - name: Install Jenkins
+      ansible.builtin.apt:
+        name: jenkins
+        state: present
+        update_cache: true
+
+    - name: Enable and start Jenkins
+      ansible.builtin.service:
+        name: jenkins
+        state: started
+        enabled: true
+
+    - name: Wait for Jenkins to finish starting
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8080/login
+        status_code: [200, 403]
+      register: jenkins_ready
+      retries: 30
+      delay: 10
+      until: jenkins_ready.status in [200, 403]
+
+    - name: Read Jenkins initial admin password
+      ansible.builtin.command: cat /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_initial_password
+      changed_when: false
+
+    - name: Show Jenkins initial admin password
+      ansible.builtin.debug:
+        msg: "Jenkins initial admin password: {{ jenkins_initial_password.stdout }}"
+
+- name: Configure SonarQube server
+  hosts: sonarqube
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Wait for cloud-init to finish on SonarQube
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+
+    - name: Refresh apt cache on SonarQube
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Upgrade installed packages on SonarQube
+      ansible.builtin.apt:
+        upgrade: dist
+
+    - name: Set vm.max_map_count for SonarQube
+      ansible.builtin.lineinfile:
+        path: /etc/sysctl.conf
+        regexp: '^vm.max_map_count='
+        line: 'vm.max_map_count=262144'
+
+    - name: Apply vm.max_map_count immediately
+      ansible.builtin.command: sysctl -w vm.max_map_count=262144
+      changed_when: false
+
+  tasks:
+    - name: Install Docker from apt
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - python3-apt
+        state: present
+
+    - name: Enable and start Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add the SSH user to the docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: true
+
+    - name: Pull SonarQube image
+      ansible.builtin.command: docker pull sonarqube:lts-community
+      register: sonarqube_pull
+      changed_when: "'Image is up to date' not in sonarqube_pull.stdout"
+
+    - name: Check whether SonarQube container exists
+      ansible.builtin.command: docker inspect sonarqube
+      register: sonarqube_container
+      failed_when: false
+      changed_when: false
+
+    - name: Run SonarQube container
+      ansible.builtin.command: >
+        docker run -d
+        --name sonarqube
+        --restart unless-stopped
+        -p 9000:9000
+        -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+        --ulimit nofile=131072:131072
+        --ulimit nproc=8192:8192
+        -v sonarqube_data:/opt/sonarqube/data
+        -v sonarqube_extensions:/opt/sonarqube/extensions
+        -v sonarqube_logs:/opt/sonarqube/logs
+        sonarqube:lts-community
+      when: sonarqube_container.rc != 0

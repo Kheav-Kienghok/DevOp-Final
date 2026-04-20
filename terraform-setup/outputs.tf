@@ -1,9 +1,9 @@
 output "jenkins_public_ip" {
-  value = aws_instance.this["jenkins"].public_ip
+  value = "http://${aws_instance.this["jenkins"].public_ip}:8080"
 }
 
 output "sonarqube_public_ip" {
-  value = aws_instance.this["sonarqube"].public_ip
+  value = "http://${aws_instance.this["sonarqube"].public_ip}:9000"
 }
 
 output "jenkins_instance_id" {

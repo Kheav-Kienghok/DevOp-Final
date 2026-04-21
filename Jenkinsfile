@@ -18,7 +18,10 @@ pipeline {
 
         SONARQUBE_SERVER = 'sonarqube-server'
 
-        DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
+        DOCKERHUB_USER = 'kienghok'
+        DOCKERHUB_PASSWORD = credentials('dockerhub-password')
+        AWS_CREDENTIALS = 'aws-credentials'
+        AWS_DEFAULT_REGION = 'us-east-1'
         EC2_HOST = ''
     }
 
@@ -80,64 +83,73 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                script {
-                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKERHUB_CREDENTIALS}") {
-                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
-                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push("latest")
-                    }
-                }
+                sh '''
+                    echo "${DOCKERHUB_PASSWORD}" | docker login -u "${DOCKERHUB_USER}" --password-stdin
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    docker logout
+                '''
             }
         }
 
         stage('Terraform Init') {
             steps {
-                dir('infra/terraform') {
-                    sh 'terraform init'
+                withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_DEFAULT_REGION}") {
+                    dir('infra/terraform') {
+                        sh 'terraform init'
+                    }
                 }
             }
         }
 
         stage('Terraform Validate') {
             steps {
-                dir('infra/terraform') {
-                    sh 'terraform validate'
+                withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_DEFAULT_REGION}") {
+                    dir('infra/terraform') {
+                        sh 'terraform validate'
+                    }
                 }
             }
         }
 
         stage('Terraform Plan') {
             steps {
-                dir('infra/terraform') {
-                    sh '''
-                        terraform plan
-                    '''
+                withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_DEFAULT_REGION}") {
+                    dir('infra/terraform') {
+                        sh '''
+                            terraform plan
+                        '''
+                    }
                 }
             }
         }
 
         stage('Terraform Apply') {
             steps {
-                dir('infra/terraform') {
-                    sh '''
-                        terraform apply -auto-approve
-                    '''
+                withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_DEFAULT_REGION}") {
+                    dir('infra/terraform') {
+                        sh '''
+                            terraform apply -auto-approve
+                        '''
+                    }
                 }
             }
         }
 
         stage('Get EC2 Host From Terraform Output') {
             steps {
-                script {
-                    env.EC2_HOST = sh(
-                        script: 'cd infra/terraform && terraform output -raw ec2_public_ip',
-                        returnStdout: true
-                    ).trim()
+                withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_DEFAULT_REGION}") {
+                    script {
+                        env.EC2_HOST = sh(
+                            script: 'cd infra/terraform && terraform output -raw ec2_public_ip',
+                            returnStdout: true
+                        ).trim()
 
-                    if (!env.EC2_HOST) {
-                        error('Terraform output ec2_public_ip is empty.')
+                        if (!env.EC2_HOST) {
+                            error('Terraform output ec2_public_ip is empty.')
+                        }
+
+                        echo "EC2 host resolved from Terraform output: ${env.EC2_HOST}"
                     }
-
-                    echo "EC2 host resolved from Terraform output: ${env.EC2_HOST}"
                 }
             }
         }

@@ -7,6 +7,7 @@ pipeline {
 
     options {
         timestamps()
+        skipDefaultCheckout(true)
     }
 
     environment {
@@ -16,7 +17,7 @@ pipeline {
         IMAGE_NAME = 'kienghok/aupp-lms'
         IMAGE_TAG  = "${BUILD_NUMBER}"
 
-        SONARQUBE_SERVER = 'sonarqube-server'
+        SONAR_SCANNER_HOME = tool 'Sonar-Scan'
 
         DOCKERHUB_USER = 'kienghok'
         DOCKERHUB_PASSWORD = credentials('dockerhub-password')
@@ -35,11 +36,14 @@ pipeline {
             }
         }
 
-        stage('SonarQube Scan') {
+        stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                    sh 'sonar-scanner'
+                script {
+                    withSonarQubeEnv('sonar-scanner') {
+                        sh "${SONAR_SCANNER_HOME}/bin/sonar-scanner"
+                    }
                 }
+                echo 'Scanning Done'
             }
         }
 

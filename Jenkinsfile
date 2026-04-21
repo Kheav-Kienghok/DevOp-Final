@@ -107,7 +107,7 @@ pipeline {
                             terraform init
                             terraform validate
                             terraform plan
-                            terraform apply -auto-approve
+                            terraform apply -auto-approve --replace="module.compute.aws_instance.this"
                         '''
                     }
                 }
@@ -125,16 +125,12 @@ pipeline {
                             script: 'cd infra/terraform && terraform output -raw ec2_public_ip || true',
                             returnStdout: true
                         ).trim()
-                        def ec2PublicDns = sh(
-                            script: 'cd infra/terraform && terraform output -raw ec2_public_dns || true',
-                            returnStdout: true
-                        ).trim()
 
-                        env.EC2_HOST = ec2PublicIp ?: ec2PublicDns
+                        env.EC2_HOST = ec2PublicIp
 
                         if (!env.EC2_HOST) {
                             sh 'cd infra/terraform && terraform output || true'
-                            error('EC2 host not found from Terraform outputs ec2_public_ip/ec2_public_dns.')
+                            error('EC2 public IP not found from Terraform output ec2_public_ip.')
                         }
 
                         echo "EC2 Host: ${env.EC2_HOST}"

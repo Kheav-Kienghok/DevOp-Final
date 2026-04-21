@@ -32,7 +32,7 @@ pipeline {
         AWS_DEFAULT_REGION = 'us-east-1'
 
         // Runtime
-        EC2_HOST = ''
+        INSTANCE_IP = ''
     }
 
     stages {
@@ -159,20 +159,21 @@ pipeline {
                             terraform init
                             terraform validate
                             terraform plan
-                            terraform apply -auto-approve
+                            terraform apply -auto-approve --replace="module.compute.aws_instance.this"
                         """
 
                         script {
-                            env.EC2_HOST = sh(
-                                script: "terraform output -raw ec2_public_ip",
+                            def ip = sh(
+                                script: "terraform output -raw instance_ip || true",
                                 returnStdout: true
                             ).trim()
 
-                            if (!env.EC2_HOST) {
-                                error("EC2_HOST is empty after Terraform apply")
+                            if (!ip || ip == "null") {
+                                error("❌ Terraform output instance_ip missing")
                             }
 
-                            echo "Deployed EC2: ${EC2_HOST}"
+                            env.INSTANCE_IP = ip
+                            echo "✅ EC2 IP: ${INSTANCE_IP}"
                         }
                     }
                 }

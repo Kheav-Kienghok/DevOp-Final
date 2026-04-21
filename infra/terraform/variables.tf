@@ -23,21 +23,15 @@ variable "ami_id" {
 }
 
 variable "key_name" {
-  description = "Existing AWS key pair"
+  description = "Name for the generated AWS key pair and local PEM file"
   type        = string
-  default     = "devop-final-key"
+  default     = "devop-final-key-1"
 }
 
 variable "my_ip_cidr" {
   description = "Your public IP in CIDR format, example 1.2.3.4/32"
   type        = string
   default     = "0.0.0.0/0"
-}
-
-variable "private_key_path" {
-  description = "Local path to the SSH private key matching key_name"
-  type        = string
-  default     = ""
 }
 
 variable "ssh_user" {
@@ -50,4 +44,16 @@ variable "provision_with_ansible" {
   description = "Run Ansible server provisioning after instance creation"
   type        = bool
   default     = false
+}
+
+variable "image_name" {
+  description = "Docker image name used by the deploy playbook"
+  type        = string
+  default     = "kienghok/aupp-lms"
+}
+
+variable "image_tag" {
+  description = "Docker image tag used by the deploy playbook"
+  type        = string
+  default     = "latest"
 }

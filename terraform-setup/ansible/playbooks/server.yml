@@ -19,6 +19,7 @@
     - name: Install Jenkins prerequisites
       ansible.builtin.apt:
         name:
+          - ansible
           - curl
           - fontconfig
           - gnupg
@@ -145,6 +146,10 @@
 
     - name: Check AWS CLI version
       ansible.builtin.command: aws --version
+      changed_when: false
+
+    - name: Check Ansible version
+      ansible.builtin.command: ansible-playbook --version
       changed_when: false
 
     - name: Wait for Jenkins to finish starting

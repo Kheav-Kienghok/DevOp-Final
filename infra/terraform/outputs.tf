@@ -7,5 +7,9 @@ output "ec2_instance_id" {
 }
 
 output "ansible_inventory_path" {
-  value = var.provision_with_ansible ? local_file.ansible_inventory[0].filename : null
+  value = local_file.ansible_inventory.filename
+}
+
+output "private_key_path" {
+  value = local.private_key_path
 }

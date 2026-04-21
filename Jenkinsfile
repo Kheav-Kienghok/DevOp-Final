@@ -147,7 +147,7 @@ pipeline {
         /* ---------------------------
          * 8. INFRA (TERRAFORM)
          * --------------------------- */
-        stage('Provision Infrastructure') {
+        stage('Provision Infrastructure & Deploy') {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
@@ -164,12 +164,49 @@ pipeline {
 
                             // Capture output directly to avoid workspace path issues.
                             env.INSTANCE_IP = sh(
-                                script: 'terraform output -raw ec2_public_ip',
+                                script: '''
+                                    set -e
+
+                                    IP="$(terraform output -raw ec2_public_ip 2>/dev/null || true)"
+
+                                    if [ -z "$IP" ] || [ "$IP" = "null" ]; then
+                                        INSTANCE_ID="$(terraform output -raw ec2_instance_id 2>/dev/null || true)"
+
+                                        if [ -n "$INSTANCE_ID" ] && [ "$INSTANCE_ID" != "null" ]; then
+                                            IP="$(aws ec2 describe-instances \
+                                                --instance-ids "$INSTANCE_ID" \
+                                                --query 'Reservations[0].Instances[0].PublicIpAddress' \
+                                                --output text)"
+                                        fi
+                                    fi
+
+                                    if [ "$IP" = "None" ] || [ "$IP" = "null" ]; then
+                                        IP=""
+                                    fi
+
+                                    echo "$IP"
+                                ''',
                                 returnStdout: true
                             ).trim()
+
+                            if (!env.INSTANCE_IP) {
+                                error('Could not determine EC2 public IP from Terraform output or AWS API')
+                            }
+
                             env.EC2_HOST = env.INSTANCE_IP
 
                             echo "✅ Captured IP from shell: ${env.INSTANCE_IP}"
+
+                            sh """
+                                ansible-playbook \
+                                    -i ../ansible/inventory.ini \
+                                    ../ansible/playbooks/server.yml
+
+                                ansible-playbook \
+                                    -i ../ansible/inventory.ini \
+                                    ../ansible/playbooks/deploy.yml \
+                                    --extra-vars \"image_full=${IMAGE_FULL} image_name=${IMAGE_NAME}\"
+                            """
                         }
                     }
                 }
@@ -177,30 +214,7 @@ pipeline {
         }
 
         /* ---------------------------
-         * 9. DEPLOY
-         * --------------------------- */
-        stage('Deploy to EC2') {
-            steps {
-                sshagent(credentials: ['ec2-ssh-key']) {
-                    sh """
-                        if [ ! -f infra/ansible/inventory.ini ]; then
-                            cat > infra/ansible/inventory.ini << 'EOF'
-[servers]
-app ansible_host=${EC2_HOST} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-EOF
-                        fi
-
-                        ansible-playbook \
-                            -i infra/ansible/inventory.ini \
-                            infra/ansible/playbooks/deploy.yml \
-                            --extra-vars "image_full=${IMAGE_FULL} image_name=${IMAGE_NAME}"
-                    """
-                }
-            }
-        }
-
-        /* ---------------------------
-         * 10. SMOKE TEST
+         * 9. SMOKE TEST
          * --------------------------- */
         stage('Smoke Test') {
             steps {

@@ -98,7 +98,10 @@ pipeline {
 
         stage('Terraform (Init → Apply)') {
             steps {
-                withAWS(credentials: "${AWS_CREDENTIALS}", region: "${AWS_DEFAULT_REGION}") {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${AWS_CREDENTIALS}"
+                ]]) {
                     dir('infra/terraform') {
                         sh '''
                             terraform init
@@ -113,17 +116,22 @@ pipeline {
 
         stage('Get EC2 Host') {
             steps {
-                script {
-                    env.EC2_HOST = sh(
-                        script: 'cd infra/terraform && terraform output -raw ec2_public_ip',
-                        returnStdout: true
-                    ).trim()
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "${AWS_CREDENTIALS}"
+                ]]) {
+                    script {
+                        env.EC2_HOST = sh(
+                            script: 'cd infra/terraform && terraform output -raw ec2_public_ip',
+                            returnStdout: true
+                        ).trim()
 
-                    if (!env.EC2_HOST) {
-                        error('EC2 public IP not found.')
+                        if (!env.EC2_HOST) {
+                            error('EC2 public IP not found.')
+                        }
+
+                        echo "EC2 Host: ${env.EC2_HOST}"
                     }
-
-                    echo "EC2 Host: ${env.EC2_HOST}"
                 }
             }
         }

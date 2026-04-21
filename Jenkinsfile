@@ -163,17 +163,26 @@ pipeline {
                         """
 
                         script {
-                            def ip = sh(
-                                script: "terraform output -raw instance_ip || true",
+                            // 1. Check and log the current directory to the console
+                            def currentDir = sh(script: "pwd", returnStdout: true).trim()
+                            echo "Current directory inside script: ${currentDir}"
+
+                            // 2. Capture the IP using the correct key from your logs
+                            def capturedIp = sh(
+                                script: "terraform output -raw ec2_public_ip", 
                                 returnStdout: true
                             ).trim()
 
-                            if (!ip || ip == "null") {
-                                error("❌ Terraform output instance_ip missing")
+                            // 3. Validation and Assignment
+                            if (capturedIp && capturedIp != "null" && capturedIp != "") {
+                                env.INSTANCE_IP = capturedIp
+                                env.EC2_HOST = capturedIp // Crucial for your later stages
+                                echo "✅ Captured IP: ${env.INSTANCE_IP}"
+                            } else {
+                                // This will stop the pipeline and tell you exactly what went wrong
+                                error "❌ ERROR: Terraform output 'ec2_public_ip' returned '${capturedIp}'. " +
+                                    "Check if terraform apply succeeded in ${currentDir}"
                             }
-
-                            env.INSTANCE_IP = ip
-                            echo "✅ EC2 IP: ${INSTANCE_IP}"
                         }
                     }
                 }

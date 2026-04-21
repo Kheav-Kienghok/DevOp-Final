@@ -1,5 +1,5 @@
 resource "aws_security_group" "this" {
-  name        = "${var.name_prefix}-sg"
+  name_prefix = "${var.name_prefix}-sg-"
   description = "Allow SSH, app, Prometheus, and Grafana"
 
   ingress {

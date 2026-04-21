@@ -35,7 +35,7 @@ resource "local_file" "ansible_inventory" {
   count = var.provision_with_ansible ? 1 : 0
 
   content = templatefile("${path.module}/templates/inventory.ini.tftpl", {
-    host     = module.compute.public_ip
+    host     = module.compute.ec2_public_ip
     ssh_user = var.ssh_user
   })
   filename = "${path.module}/../ansible/inventory.ini"
@@ -50,7 +50,7 @@ resource "null_resource" "wait_for_cloud_init" {
 
   connection {
     type        = "ssh"
-    host        = module.compute.public_ip
+    host        = module.compute.ec2_public_ip
     user        = var.ssh_user
     private_key = file(var.private_key_path)
     timeout     = "5m"

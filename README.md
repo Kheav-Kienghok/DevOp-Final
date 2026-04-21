@@ -14,6 +14,10 @@ The CI/CD pipeline is implemented using **Jenkins**, with integrations including
 - AWS EC2 (Deployment Target)
 - Prometheus + Grafana (Monitoring & Dashboard)
 
+Required Jenkins plugin for the SonarQube report step:
+
+- SonarQube Scanner plugin (`sonar`)
+
 ---
 
 ## Assignment Evidence Checklist
@@ -25,31 +29,36 @@ Place the screenshots in this order so the submission reads naturally from colla
 Capture the GitHub workflow first.
 
 1. GitHub Branches + Pull Request
-	- Show the feature branch, open PR, and source/target branches.
-	- Place the screenshot under `1.3 Pull Request & Reviewer Approval`.
+    - Show the feature branch, open PR, and source/target branches.
+    - Place the screenshot under `1.3 Pull Request & Reviewer Approval`.
+
 2. Reviewer Approval
-	- Show at least 1 reviewer approval on the PR.
-	- Place the screenshot directly after the PR screenshot.
+    - Show at least 1 reviewer approval on the PR.
+    - Place the screenshot directly after the PR screenshot.
+
 3. Merge Conflict + Resolved
-	- Show the merge conflict first, then the resolved file or resolved PR diff.
-	- Place the screenshot under `1.4 Merge Conflict Demonstration & Resolution`.
+    - Show the merge conflict first, then the resolved file or resolved PR diff.
+    - Place the screenshot under `1.4 Merge Conflict Demonstration & Resolution`.
 
 ### 2. Continuous Integration (CI)
 
 Capture the pipeline script and the quality/security results.
 
 4. Jenkins / GitHub Action full script
-	- Show the complete Jenkinsfile or workflow YAML with checkout, SonarQube, Trivy, Docker build, Terraform, and deploy stages.
-	- Place the screenshot under `2. Continuous Integration (CI) using Jenkins` or a dedicated `Jenkinsfile / Pipeline Script` subsection.
+    - Show the complete Jenkinsfile or workflow YAML with checkout, SonarQube, Trivy, Docker build, Terraform, and deploy stages.
+    - Place the screenshot under `2. Continuous Integration (CI) using Jenkins` or a dedicated `Jenkinsfile / Pipeline Script` subsection.
+
 5. SonarQube report
-	- Show the dashboard, quality gate, and main analysis results.
-	- Place the screenshot under `3. Code Quality Scan (SonarQube)`.
+    - Show the dashboard, quality gate, and main analysis results.
+    - Place the screenshot under `3. Code Quality Scan (SonarQube)`.
+
 6. Trivy scan result
-	- Show the vulnerability scan output, especially any critical findings.
-	- Place the screenshot under `4. Security Scanning (Trivy)`.
+    - Show the vulnerability scan output, especially any critical findings.
+    - Place the screenshot under `4. Security Scanning (Trivy)`.
+
 7. Quality Fail Pipeline Termination
-	- Show the pipeline stopping because SonarQube failed or Trivy found critical vulnerabilities.
-	- Place the screenshot under `10.2 Failed Pipeline Execution (Quality Gate / Trivy)`.
+    - Show the pipeline stopping because SonarQube failed or Trivy found critical vulnerabilities.
+    - Place the screenshot under `10.2 Failed Pipeline Execution (Quality Gate / Trivy)`.
 
 ### 3. Infrastructure as Code (Terraform)
 
@@ -61,6 +70,7 @@ Capture the pipeline script and the quality/security results.
 
 9. Continuous Deployment
 	- Show the deployment logs where Jenkins copies or runs the container on EC2.
+    - Include the Docker socket permission step if you used it during deployment setup: `sudo chmod 666 /var/run/docker.sock`.
 	- Place the screenshot under `7. Continuous Deployment (CD)`.
 10. Pipeline success graphical
 	- Show the Jenkins pipeline view with all stages successful.

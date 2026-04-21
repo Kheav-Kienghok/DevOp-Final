@@ -70,6 +70,11 @@
         state: present
         update_cache: true
 
+    - name: Install Jenkins SonarQube Scanner plugin
+      ansible.builtin.command: jenkins-plugin-cli --plugins sonar
+      args:
+        creates: /var/lib/jenkins/plugins/sonar.jpi
+
     - name: Enable and start Jenkins
       ansible.builtin.service:
         name: jenkins
@@ -116,6 +121,11 @@
         name: docker
         state: started
         enabled: true
+
+    - name: Allow Docker socket access for Jenkins automation
+      ansible.builtin.file:
+        path: /var/run/docker.sock
+        mode: "0666"
 
     - name: Add ubuntu user to docker group
       ansible.builtin.user:

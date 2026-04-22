@@ -127,8 +127,10 @@ pipeline {
                                 --path=./ \
                                 --token=$SONAR_AUTH_TOKEN
 
+                            ls -lah
+
                             docker run --rm \
-                                -v "$PWD":/pdf \
+                                -v "\$WORKSPACE":/pdf \
                                 -w /pdf \
                                 sergiomtzlosa/pdf2htmlex \
                                 pdf2htmlEX ./generated-sonarqube-report.pdf ./reports/sonar/generated-sonarqube-report.html

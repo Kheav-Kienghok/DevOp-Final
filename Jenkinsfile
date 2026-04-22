@@ -115,13 +115,16 @@ pipeline {
                         }
 
                         sh """
+                            wget -O sonar-cnes-report-5.0.2.jar \
+                                https://github.com/cnescatlab/sonar-cnes-report/releases/download/5.0.2/sonar-cnes-report-5.0.2.jar
+
                             mkdir -p reports/sonar
 
-                            java -jar sonar-cnes-report.jar \
-                                --sonar.url ${sonarUrl} \
-                                --sonar.token $SONAR_AUTH_TOKEN \
-                                --projectKey ${SONAR_PROJECT_KEY} \
-                                --output reports/sonar/index.html
+                            java -jar sonar-cnes-report-5.0.2.jar \
+                                -s ${sonarUrl} \
+                                -t $SONAR_AUTH_TOKEN \
+                                -p ${SONAR_PROJECT_KEY} \
+                                -o reports/sonar/index.html
                         """
                     }
                 }

@@ -35,15 +35,15 @@ variable "my_ip_cidr" {
 }
 
 variable "ssh_user" {
-  description = "SSH user for the EC2 instance (ec2-user for AL2023, ubuntu for Ubuntu)"
+  description = "SSH user for the EC2 instance"
   type        = string
-  default     = "ec2-user"
+  default     = "ubuntu"
 }
 
 variable "provision_with_ansible" {
   description = "Run Ansible server provisioning after instance creation"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "image_name" {

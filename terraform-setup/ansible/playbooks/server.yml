@@ -71,11 +71,6 @@
         state: present
         update_cache: true
 
-    - name: Install Jenkins SonarQube Scanner plugin
-      ansible.builtin.command: jenkins-plugin-cli --plugins sonar
-      args:
-        creates: /var/lib/jenkins/plugins/sonar.jpi
-
     - name: Enable and start Jenkins
       ansible.builtin.service:
         name: jenkins

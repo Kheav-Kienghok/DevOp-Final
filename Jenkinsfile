@@ -11,34 +11,48 @@ pipeline {
         skipDefaultCheckout(true)
     }
 
+    /* ---------------------------
+     * PARAMETERS (Optional override)
+     * --------------------------- */
+    parameters {
+        string(
+            name: 'SONAR_HOST_URL_OVERRIDE',
+            defaultValue: '',
+            description: 'Optional SonarQube URL (only for report, leave empty to use Jenkins config)'
+        )
+    }
+
     environment {
-        // Source
+        /* ---------------------------
+         * SOURCE
+         * --------------------------- */
         GIT_REPO_URL = 'https://github.com/Kheav-Kienghok/aupp-lms-devops-cicd.git'
         GIT_BRANCH   = 'main'
 
-        // Sonar
+        /* ---------------------------
+         * SONAR
+         * --------------------------- */
         SONAR_SCANNER_HOME = tool 'Sonar-Scan'
         SONAR_SERVER = 'sonar-scanner'
+        SONAR_PROJECT_KEY = 'aupp-lms-backend'
 
-        // Docker
-        DOCKERHUB_USER = 'kienghok'
-        DOCKERHUB_PASSWORD = credentials('dockerhub-password')
-
+        /* ---------------------------
+         * DOCKER
+         * --------------------------- */
         IMAGE_NAME = 'kienghok/aupp-lms'
         IMAGE_TAG  = "${BUILD_NUMBER}"
 
-        // AWS / Infra
+        /* ---------------------------
+         * AWS
+         * --------------------------- */
         AWS_CREDENTIALS = 'aws-credentials'
         AWS_DEFAULT_REGION = 'us-east-1'
-
-        // Runtime
-        INSTANCE_IP = ''
     }
 
     stages {
 
         /* ---------------------------
-         * 1. SOURCE
+         * 1. CHECKOUT
          * --------------------------- */
         stage('Checkout') {
             steps {
@@ -51,8 +65,7 @@ pipeline {
          * --------------------------- */
         stage('Build Application') {
             steps {
-                echo "Building application artifacts..."
-                sh 'echo "Build step placeholder (add Maven/Go/Node build here)"'
+                sh 'echo "Build step placeholder"'
             }
         }
 
@@ -61,13 +74,12 @@ pipeline {
          * --------------------------- */
         stage('Unit Tests') {
             steps {
-                echo "Running unit tests..."
-                sh 'echo "Add real test command here (pytest, mvn test, go test, etc.)"'
+                sh 'echo "Run tests here"'
             }
         }
 
         /* ---------------------------
-         * 4. STATIC ANALYSIS (SONAR)
+         * 4. SONAR ANALYSIS
          * --------------------------- */
         stage('SonarQube Analysis') {
             steps {
@@ -79,6 +91,9 @@ pipeline {
             }
         }
 
+        /* ---------------------------
+         * 5. QUALITY GATE
+         * --------------------------- */
         stage('Quality Gate') {
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
@@ -88,7 +103,49 @@ pipeline {
         }
 
         /* ---------------------------
-         * 5. SECURITY SCANNING
+         * 6. CNES REPORT GENERATION
+         * --------------------------- */
+        stage('Generate Sonar CNES Report') {
+            steps {
+                withSonarQubeEnv('sonar-scanner') {
+                    script {
+                        def sonarUrl = params.SONAR_HOST_URL_OVERRIDE?.trim()
+                        if (!sonarUrl) {
+                            sonarUrl = env.SONAR_HOST_URL
+                        }
+
+                        sh """
+                            mkdir -p reports/sonar
+
+                            java -jar sonar-cnes-report.jar \
+                                --sonar.url ${sonarUrl} \
+                                --sonar.token $SONAR_AUTH_TOKEN \
+                                --projectKey ${SONAR_PROJECT_KEY} \
+                                --output reports/sonar/index.html
+                        """
+                    }
+                }
+            }
+        }
+
+        /* ---------------------------
+         * 7. PUBLISH HTML REPORT
+         * --------------------------- */
+        stage('Publish Sonar HTML Report') {
+            steps {
+                publishHTML([
+                    reportDir: 'reports/sonar',
+                    reportFiles: 'index.html',
+                    reportName: 'Sonar CNES Report',
+                    keepAll: true,
+                    alwaysLinkToLastBuild: true,
+                    allowMissing: false
+                ])
+            }
+        }
+
+        /* ---------------------------
+         * 8. SECURITY SCAN
          * --------------------------- */
         stage('Filesystem Security Scan (Trivy)') {
             steps {
@@ -102,18 +159,20 @@ pipeline {
         }
 
         /* ---------------------------
-         * 6. DOCKER BUILD & SCAN
+         * 9. DOCKER BUILD
          * --------------------------- */
         stage('Docker Build') {
             steps {
                 script {
                     env.IMAGE_FULL = "${IMAGE_NAME}:${IMAGE_TAG}"
-
                     docker.build(env.IMAGE_FULL, "-f app/Dockerfile ./app")
                 }
             }
         }
 
+        /* ---------------------------
+         * 10. CONTAINER SCAN
+         * --------------------------- */
         stage('Container Security Scan (Trivy)') {
             steps {
                 sh """
@@ -127,25 +186,31 @@ pipeline {
         }
 
         /* ---------------------------
-         * 7. PUSH IMAGE
+         * 11. PUSH IMAGE
          * --------------------------- */
         stage('Push Docker Image') {
             steps {
-                sh """
-                    echo "${DOCKERHUB_PASSWORD}" | docker login -u "${DOCKERHUB_USER}" --password-stdin
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
-                    docker push ${IMAGE_FULL}
+                        docker push $IMAGE_FULL
 
-                    docker tag ${IMAGE_FULL} ${IMAGE_NAME}:latest
-                    docker push ${IMAGE_NAME}:latest
+                        docker tag $IMAGE_FULL $IMAGE_NAME:latest
+                        docker push $IMAGE_NAME:latest
 
-                    docker logout
-                """
+                        docker logout
+                    '''
+                }
             }
         }
 
         /* ---------------------------
-         * 8. INFRA (TERRAFORM)
+         * 12. INFRASTRUCTURE
          * --------------------------- */
         stage('Provision Infrastructure & Deploy') {
             steps {
@@ -155,72 +220,21 @@ pipeline {
                 ]]) {
 
                     dir('infra/terraform') {
-                        script {
-                            // Run Terraform apply first.
-                            sh """
-                                terraform init
-                                terraform apply -auto-approve --replace="module.compute.aws_instance.this"
-                            """
-
-                            // Capture output directly to avoid workspace path issues.
-                            env.INSTANCE_IP = sh(
-                                script: '''
-                                    set -e
-
-                                    IP="$(terraform output -raw ec2_public_ip 2>/dev/null || true)"
-
-                                    if [ -z "$IP" ] || [ "$IP" = "null" ]; then
-                                        INSTANCE_ID="$(terraform output -raw ec2_instance_id 2>/dev/null || true)"
-
-                                        if [ -n "$INSTANCE_ID" ] && [ "$INSTANCE_ID" != "null" ]; then
-                                            IP="$(aws ec2 describe-instances \
-                                                --instance-ids "$INSTANCE_ID" \
-                                                --query 'Reservations[0].Instances[0].PublicIpAddress' \
-                                                --output text)"
-                                        fi
-                                    fi
-
-                                    if [ "$IP" = "None" ] || [ "$IP" = "null" ]; then
-                                        IP=""
-                                    fi
-
-                                    echo "$IP"
-                                ''',
-                                returnStdout: true
-                            ).trim()
-
-                            if (!env.INSTANCE_IP) {
-                                error('Could not determine EC2 public IP from Terraform output or AWS API')
-                            }
-
-                            env.EC2_HOST = env.INSTANCE_IP
-
-                            echo "✅ Captured IP from shell: ${env.INSTANCE_IP}"
-
-                            sh """
-                                ansible-playbook \
-                                    -i ../ansible/inventory.ini \
-                                    ../ansible/playbooks/server.yml
-
-                                ansible-playbook \
-                                    -i ../ansible/inventory.ini \
-                                    ../ansible/playbooks/deploy.yml \
-                                    --extra-vars \"image_full=${IMAGE_FULL} image_name=${IMAGE_NAME}\"
-                            """
-                        }
+                        sh """
+                            terraform init
+                            terraform apply -auto-approve
+                        """
                     }
                 }
             }
         }
 
         /* ---------------------------
-         * 9. SMOKE TEST
+         * 13. SMOKE TEST
          * --------------------------- */
         stage('Smoke Test') {
             steps {
                 sh """
-                    echo "Testing deployment..."
-
                     curl -f http://${EC2_HOST}:8000 || exit 1
                 """
             }
@@ -237,11 +251,6 @@ pipeline {
 
         failure {
             echo "❌ Pipeline FAILED — check logs"
-        }
-
-        always {
-            echo "Pipeline completed"
-            cleanWs()
         }
     }
 }

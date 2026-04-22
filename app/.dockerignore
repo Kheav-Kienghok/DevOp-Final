@@ -7,3 +7,5 @@ __pycache__
 *.pyo
 *.sqlite3
 *.log
+Dockerfile
+Makefile

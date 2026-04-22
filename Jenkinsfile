@@ -40,7 +40,7 @@ pipeline {
          * DOCKER
          * --------------------------- */
         IMAGE_NAME = 'kienghok/aupp-lms'
-        IMAGE_TAG  = "${BUILD_NUMBER}"
+        IMAGE_TAG  = "v${BUILD_NUMBER}"
 
         /* ---------------------------
          * AWS
@@ -236,6 +236,15 @@ pipeline {
                             terraform init
                             terraform apply -auto-approve
                         """
+
+                        script {
+                            env.EC2_HOST = sh(
+                                script: "terraform output -raw ec2_public_ip",
+                                returnStdout: true
+                            ).trim()
+                        }
+
+                        echo "EC2_HOST = ${env.EC2_HOST}"
                     }
                 }
             }
@@ -247,7 +256,7 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh """
-                    curl -f http://${EC2_HOST}:8000 || exit 1
+                    curl -f http://${env.EC2_HOST}:8000 || exit 1
                 """
             }
         }

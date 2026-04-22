@@ -63,21 +63,23 @@ Capture the pipeline script and the quality/security results.
 ### 3. Infrastructure as Code (Terraform)
 
 8. Terraform
-	- Show `terraform init`, `terraform apply`, and the final EC2 public IP or instance ID.
-	- Place the screenshot under `6. Infrastructure as Code (Terraform)`.
+    - Show `terraform init`, `terraform apply`, and the final EC2 public IP or instance ID.
+    - Place the screenshot under `6. Infrastructure as Code (Terraform)`.
 
 ### 4. Continuous Deployment (CD)
 
 9. Continuous Deployment
-	- Show the deployment logs where Jenkins copies or runs the container on EC2.
+    - Show the deployment logs where Jenkins copies or runs the container on EC2.
     - Include the Docker socket permission step if you used it during deployment setup: `sudo chmod 666 /var/run/docker.sock`.
-	- Place the screenshot under `7. Continuous Deployment (CD)`.
+    - Place the screenshot under `7. Continuous Deployment (CD)`.
+
 10. Pipeline success graphical
-	- Show the Jenkins pipeline view with all stages successful.
-	- Place the screenshot under `10.1 Successful Pipeline Execution`.
+    - Show the Jenkins pipeline view with all stages successful.
+    - Place the screenshot under `10.1 Successful Pipeline Execution`.
+
 11. Access running application from laptop
-	- Show your browser accessing the running app through the EC2 public IP or domain.
-	- Place the screenshot under `8. Application Access from Laptop`.
+    - Show your browser accessing the running app through the EC2 public IP or domain.
+    - Place the screenshot under `8. Application Access from Laptop`.
 
 ### 5. Monitoring & Observability
 

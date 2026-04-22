@@ -88,6 +88,14 @@
         state: present
         update_cache: true
 
+    - name: Append Jenkins CSP override
+      ansible.builtin.lineinfile:
+        path: /etc/default/jenkins
+        line: 'JAVA_ARGS="$JAVA_ARGS -Dhudson.model.DirectoryBrowserSupport.CSP="""'
+        insertafter: EOF
+        create: yes
+      notify: Restart Jenkins
+
     - name: Enable and start Jenkins
       ansible.builtin.service:
         name: jenkins
@@ -188,6 +196,12 @@
       run_once: true
       no_log: true
 
+  handlers:
+    - name: Restart Jenkins
+      ansible.builtin.service:
+        name: jenkins
+        state: restarted
+
 - name: Configure SonarQube server
   hosts: sonarqube
   become: true
@@ -211,8 +225,8 @@
     - name: Set vm.max_map_count for SonarQube
       ansible.builtin.lineinfile:
         path: /etc/sysctl.conf
-        regexp: '^vm.max_map_count='
-        line: 'vm.max_map_count=262144'
+        regexp: "^vm.max_map_count="
+        line: "vm.max_map_count=262144"
 
     - name: Apply vm.max_map_count immediately
       ansible.builtin.command: sysctl -w vm.max_map_count=262144

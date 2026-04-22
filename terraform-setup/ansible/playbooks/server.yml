@@ -24,11 +24,28 @@
           - fontconfig
           - gnupg
           - openjdk-21-jre
+          - python3
+          - python3-pip
+          - python3-venv
           - unzip
           - wget
           - python3-apt
           - docker.io
         state: present
+
+    - name: Install RedCoffee in dedicated virtual environment
+      ansible.builtin.pip:
+        name: redcoffee
+        virtualenv: /opt/redcoffee-venv
+        virtualenv_command: python3 -m venv
+        state: latest
+
+    - name: Expose redcoffee binary globally for Jenkins jobs
+      ansible.builtin.file:
+        src: /opt/redcoffee-venv/bin/redcoffee
+        dest: /usr/local/bin/redcoffee
+        state: link
+        force: true
 
     - name: Download Trivy apt signing key
       ansible.builtin.get_url:

@@ -115,16 +115,26 @@ pipeline {
                         }
 
                         sh """
-                            wget -O sonar-cnes-report-5.0.2.jar \
-                                https://github.com/cnescatlab/sonar-cnes-report/releases/download/5.0.2/sonar-cnes-report-5.0.2.jar
+                            set -e
 
                             mkdir -p reports/sonar
 
-                            java -jar sonar-cnes-report-5.0.2.jar \
-                                -s ${sonarUrl} \
-                                -t $SONAR_AUTH_TOKEN \
-                                -p ${SONAR_PROJECT_KEY} \
-                                -o reports/sonar/index.html
+                            command -v redcoffee >/dev/null 2>&1 || { echo "redcoffee is not installed on this Jenkins node"; exit 1; }
+
+                            redcoffee generatepdf \
+                                --host=${sonarUrl} \
+                                --project=${SONAR_PROJECT_KEY} \
+                                --path=./ \
+                                --token=$SONAR_AUTH_TOKEN
+
+                            test -f generated-sonarqube-report.pdf
+
+                            docker run --rm \
+                                -v \"$PWD\":/pdf \
+                                sergiomtzlosa/pdf2htmlex \
+                                pdf2htmlEX /pdf/generated-sonarqube-report.pdf /pdf/reports/sonar/generated-sonarqube-report.html
+
+                            test -f reports/sonar/generated-sonarqube-report.html
                         """
                     }
                 }
@@ -138,8 +148,8 @@ pipeline {
             steps {
                 publishHTML([
                     reportDir: 'reports/sonar',
-                    reportFiles: 'index.html',
-                    reportName: 'Sonar CNES Report',
+                    reportFiles: 'generated-sonarqube-report.html',
+                    reportName: 'Sonar PDF Report (HTML)',
                     keepAll: true,
                     alwaysLinkToLastBuild: true,
                     allowMissing: false

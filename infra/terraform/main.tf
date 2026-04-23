@@ -81,6 +81,6 @@ resource "null_resource" "ansible_provision" {
   }
 
   provisioner "local-exec" {
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ${abspath(var.ssh_private_key_path)} -i ${local_file.ansible_inventory[0].filename} ${path.module}/../ansible/playbooks/server.yml"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key ${abspath(var.ssh_private_key_path)} -i ${local_file.ansible_inventory[0].filename} ${path.module}/ansible/playbooks/server.yml"
   }
 }

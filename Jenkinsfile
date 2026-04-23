@@ -226,17 +226,21 @@ pipeline {
          * --------------------------- */
         stage('Provision Infrastructure') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: "${AWS_CREDENTIALS}"
-                ]]) {
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: "${AWS_CREDENTIALS}"],
+                    string(credentialsId: 'ec2-pem-content', variable: 'PEM_CONTENT')
+                ]) {
                     dir('infra/terraform') {
-                        sh """
+                        script {
+                            writeFile file: 'jenkins-temp-key.pem', text: env.PEM_CONTENT
+                        }
+
+                        sh '''
+                            chmod 400 jenkins-temp-key.pem
                             terraform init
                             terraform apply -auto-approve \
-                                -var 'ssh_public_key_path=/var/lib/jenkins/.ssh/id_rsa.pub' \
-                                -var 'ssh_private_key_path=/var/lib/jenkins/.ssh/id_rsa'
-                        """
+                                -var="ssh_private_key_path=$(pwd)/jenkins-temp-key.pem"
+                        '''
 
                         script {
                             env.EC2_HOST = sh(
@@ -249,9 +253,6 @@ pipeline {
                                 returnStdout: true
                             ).trim()
                         }
-
-                        echo "EC2_HOST = ${env.EC2_HOST}"
-                        echo "ANSIBLE_INVENTORY = ${env.ANSIBLE_INVENTORY}"
                     }
                 }
             }
@@ -265,7 +266,7 @@ pipeline {
                 sh """
                     set -e
                     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbooks/deploy.yml \
-                        --extra-vars \"image_name=${IMAGE_NAME} image_full=${IMAGE_FULL}\"
+                        --extra-vars \"image_name=${IMAGE_NAME}:${IMAGE_TAG} image_full=${IMAGE_FULL}\"
                 """
             }
         }

@@ -288,9 +288,17 @@ pipeline {
          * --------------------------- */
         stage('Smoke Test') {
             steps {
-                sh """
-                    curl -f http://${env.EC2_HOST}:8000 || exit 1
-                """
+                sh '''
+                    set -e
+                    for i in $(seq 1 12); do
+                    if curl -f http://${EC2_HOST}:8000; then
+                        exit 0
+                    fi
+                    echo "Retry $i/12..."
+                    sleep 10
+                    done
+                    exit 1
+                '''
             }
         }
     }

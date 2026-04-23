@@ -10,7 +10,7 @@ router = APIRouter()
 @router.get("/")
 def root() -> dict[str, str]:
     track_request("GET", "/")
-    return {"message": "AUPP LMS backend is running v2"}
+    return {"message": "AUPP LMS backend is running v3"}
 
 
 @router.get("/health")

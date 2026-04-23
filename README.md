@@ -84,6 +84,7 @@ Below is a step-by-step guide for handling merge conflicts when the main branch 
 
 **8. Merge to the main branch**
 
+![PR Approve](./images/devops_images_7.png)
 ![Merge to main](./images/devops_images_9.png)
 
 > Once the conflict is resolved and the PR is approved, it can be merged into the main branch.
@@ -92,19 +93,88 @@ Below is a step-by-step guide for handling merge conflicts when the main branch 
 
 ### 2. Continuous Integration (CI)
 
-Capture the pipeline script and the quality/security results.
+#### Continuous Integration (CI) Workflow
 
-1. Jenkins / GitHub Action full script
+Below is a step-by-step guide for the CI process, with each step illustrated and explained:
 
-    Jenkinsfile Script
-    Webhook with jenkins
-    Sonarqube report
+---
 
-    Quablity Gate only success to pass through
-        
-    Trivy Report
-        Filesystem
-        Docker image scan
+**1. Code pushed to repository (triggers CI pipeline)**
+
+![Code push triggers CI](./images/devops_images_28.png)
+
+> When code is pushed or a PR is merged, a webhook triggers the Jenkins CI pipeline automatically.
+
+---
+
+Jenkins Plugin
+Jenkins Credentials
+
+**2. Jenkins pipeline starts**
+
+![Jenkins pipeline start](./images/devops_image_29.png)
+
+> Jenkins picks up the event and starts executing the pipeline defined in the Jenkinsfile.
+
+---
+
+**3. SonarQube code quality scan**
+
+![SonarQube scan](./images/devops_images_14.png)
+![SonarQube scan](./images/devops_images_15.png)
+![SonarQube scan](./images/devops_images_16.png)
+![SonarQube scan](./images/devops_images_31.png)
+
+> The pipeline runs a SonarQube scan to analyze code quality, bugs, and code smells. A report is generated.
+
+---
+
+**5. Quality Gate enforcement**
+
+![Quality Gate](./images/devops_images_17.png)
+
+> The build passes only if the SonarQube Quality Gate is successful. If not, the pipeline fails and stops here.
+
+---
+
+**6. Trivy security scan (filesystem & Docker image)**
+
+![Trivy scan](./images/devops_images_18.png)
+![Trivy scan](./images/devops_images_19.png)
+![Trivy scan](./images/devops_images_20.png)
+
+> Trivy scans the project files and built Docker images for vulnerabilities. Reports are generated for both filesystem and image scans.
+
+---
+
+**7. Build Docker image**
+
+![Docker build](./images/devops_images_21.png)
+
+> If all previous steps succeed, Jenkins builds a Docker image for the application.
+
+---
+
+#### Jenkins Plugin: Credentials Management
+
+**9. Jenkins Credentials Plugin setup**
+
+![Jenkins credentials plugin](./images/devops_images_10.png)
+![Jenkins credentials plugin](./images/devops_images_12.png)
+
+> Jenkins uses the Credentials Plugin to securely store secrets (like Docker registry passwords, SonarQube tokens, etc.). Credentials are referenced in the pipeline for authentication and secure operations.
+
+---
+
+#### Jenkins CLI Command for HTML Report Visibility
+
+**10. Publish HTML Reports via Jenkins CLI**
+
+![Jenkins HTML report](./images/devops_images_30.png)
+
+> To make HTML reports (e.g., SonarQube, Trivy) visible in Jenkins, use the 'HTML Publisher' plugin and configure the pipeline to archive and publish HTML reports.
+
+---
 
 ### 3. Infrastructure as Code (Terraform)
 

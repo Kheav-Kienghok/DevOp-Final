@@ -89,9 +89,10 @@ def update_item(
         cleaned_title = item_in.title.strip()
         if not cleaned_title:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Title cannot be empty"
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Title is required",
             )
-        item.title = cleaned_title
+        item.title = cleaned_title.lower()
 
     if item_in.description is not None:
         cleaned_description = item_in.description.strip()

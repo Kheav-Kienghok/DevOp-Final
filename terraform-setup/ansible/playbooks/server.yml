@@ -3,6 +3,9 @@
   hosts: jenkins
   become: true
   gather_facts: true
+  vars:
+    # Set to empty string "" to disable completely, but unsafe
+    jenkins_csp_args: "sandbox allow-same-origin; default-src 'self'; script-src 'self' 'unsafe-inline';"
 
   pre_tasks:
     - name: Wait for cloud-init to finish on Jenkins
@@ -88,13 +91,13 @@
         state: present
         update_cache: true
 
-    - name: Append Jenkins CSP override
-      ansible.builtin.lineinfile:
+    - name: Update Jenkins CSP in /etc/default/jenkins
+      lineinfile:
         path: /etc/default/jenkins
-        line: 'JAVA_ARGS="$JAVA_ARGS -Dhudson.model.DirectoryBrowserSupport.CSP="""'
-        insertafter: EOF
-        create: yes
-      notify: Restart Jenkins
+        regexp: '^JAVA_ARGS='
+        line: 'JAVA_ARGS="-Djava.awt.headless=true -Dhudson.model.DirectoryBrowserSupport.CSP=\"{{ jenkins_csp_args }}\""'
+        state: present
+      register: jenkins_config
 
     - name: Enable and start Jenkins
       ansible.builtin.service:

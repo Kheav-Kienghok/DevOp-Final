@@ -18,6 +18,10 @@ terraform {
       source  = "hashicorp/tls"
       version = "~> 4.0"
     }
+    external = {
+      source  = "hashicorp/external"
+      version = "~> 2.3"
+    }
   }
 }
 
@@ -32,11 +36,21 @@ locals {
   ansible_server_playbook = "${path.module}/../ansible/playbooks/server.yml"
   image_full              = "${var.image_name}:${var.image_tag}"
 
+  # Check if key pair exists
+  key_exists = data.external.check_key.result.exists == "true"
+
   # True when we should create a new key pair
-  create_key = var.existing_key_pair_name == ""
+  create_key = !local.key_exists
 
   # Final key name passed to the compute module — whichever path was taken
-  resolved_key_name = local.create_key ? aws_key_pair.jenkins[0].key_name : data.aws_key_pair.existing[0].key_name
+  resolved_key_name = var.key_name
+}
+
+# ─────────────────────────────────────────────
+# Check if key pair exists
+# ─────────────────────────────────────────────
+data "external" "check_key" {
+  program = ["bash", "-c", "aws ec2 describe-key-pairs --key-names ${var.key_name} --region ${var.aws_region} >/dev/null 2>&1 && echo '{\"exists\": \"true\"}' || echo '{\"exists\": \"false\"}'"]
 }
 
 # ─────────────────────────────────────────────
@@ -67,8 +81,8 @@ resource "aws_key_pair" "jenkins" {
 # Path B — Reuse an existing key pair
 # ─────────────────────────────────────────────
 data "aws_key_pair" "existing" {
-  count    = local.create_key ? 0 : 1
-  key_name = var.existing_key_pair_name
+  count    = local.key_exists ? 1 : 0
+  key_name = var.key_name
 }
 
 # ─────────────────────────────────────────────

@@ -257,6 +257,9 @@ pipeline {
             }
         }
 
+        /* ---------------------------
+         * 13. Deploy to EC2 with Ansible
+         * --------------------------- */
         stage('Deploy to EC2') {
             steps {
                 sh """
@@ -268,7 +271,7 @@ pipeline {
         }
 
         /* ---------------------------
-         * 13. SMOKE TEST
+         * 14. SMOKE TEST
          * --------------------------- */
         stage('Smoke Test') {
             steps {

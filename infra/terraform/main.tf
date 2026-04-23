@@ -30,9 +30,22 @@ locals {
   image_full              = "${var.image_name}:${var.image_tag}"
 }
 
+resource "tls_private_key" "jenkins" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "local_file" "jenkins_private_key" {
+  content         = tls_private_key.jenkins.private_key_pem
+  filename        = "/home/jenkins/.ssh/id_rsa"
+  file_permission = "0600"
+}
+
 resource "aws_key_pair" "jenkins" {
   key_name   = var.key_name
-  public_key = file(var.ssh_public_key_path)
+  public_key = tls_private_key.jenkins.public_key_openssh
+
+  depends_on = [local_file.jenkins_private_key]
 }
 
 module "compute" {
@@ -94,4 +107,3 @@ resource "null_resource" "ansible_provision" {
     EOT
   }
 }
-
